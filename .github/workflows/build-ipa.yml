@@ -1,0 +1,73 @@
+name: Build unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    # macos-latest 自带 Xcode + iOS SDK；不要写死 macos-14，避免镜像下线
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare sources
+        run: |
+          set -euo pipefail
+          if [ ! -f project.yml ]; then
+            echo "根目录没有 project.yml，从 StepSourceDemo.zip 解压"
+            unzip -oq StepSourceDemo.zip
+          fi
+          ls -la
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          set -euo pipefail
+          xcodegen generate
+          xcodebuild -list -project StepDemo.xcodeproj || true
+
+      - name: Build unsigned app
+        run: |
+          set -euo pipefail
+          # 用 -target 而不是 -scheme：CI 上没有 Xcode 自动生成的 scheme，用 -scheme 会报 scheme not found。
+          # 产物路径用 CONFIGURATION_BUILD_DIR 固定，便于后面打包。
+          xcodebuild \
+            -project StepDemo.xcodeproj \
+            -target StepDemo \
+            -configuration Release \
+            -sdk iphoneos \
+            -arch arm64 \
+            CONFIGURATION_BUILD_DIR="$PWD/build/Release-iphoneos" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            build
+
+      - name: Package into IPA
+        run: |
+          set -euo pipefail
+          APP_PATH="build/Release-iphoneos/StepDemo.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "没找到产物，下面是实际目录："
+            find build -maxdepth 3 -name "*.app" -print || true
+            exit 1
+          fi
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qr StepDemo-unsigned.ipa Payload
+          ls -lh StepDemo-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StepDemo-unsigned-ipa
+          path: StepDemo-unsigned.ipa
+          retention-days: 7

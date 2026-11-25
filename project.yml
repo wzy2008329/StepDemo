@@ -1,0 +1,34 @@
+name: StepDemo
+options:
+  bundleIdPrefix: com.wzy
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  StepSourceKit:
+    path: StepSourceKit
+
+targets:
+  StepDemo:
+    type: application
+    platform: iOS
+    sources:
+      - path: DemoApp
+        excludes:
+          - Info.plist
+    info:
+      path: DemoApp/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wzy.stepdemo
+        PRODUCT_NAME: StepDemo
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+    dependencies:
+      - package: StepSourceKit
+        product: StepSourceKit
